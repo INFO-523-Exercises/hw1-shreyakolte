@@ -1,0 +1,289 @@
+---
+title: "HW1"
+author: "Shreya Kolte"
+format: pdf
+editor: visual
+---
+
+## [**GETTING TO KNOW R:**]{.underline}
+
+### Installing required packages:
+
+```{r}
+# First run this
+install.packages("pacman")
+```
+
+```{r}
+library(pacman)
+
+p_load(dlookr,
+       DMwR2, # Data Mining with R functions
+       GGally, # Pair-wise plots using ggplot2
+       Hmisc, # Data analysis 
+       palmerpenguins, # Alternative to the Iris dataset
+       tidyverse) # Data wrangling, manipulation, visualization
+```
+
+### Loading Data:
+
+```{r}
+data(algae, package = "DMwR2")
+
+algae |> glimpse()
+```
+
+### To compute the central tendency: Mean, Median, Mode
+
+**Mean:**
+
+```{r}
+algae$a1 |>
+  mean()
+```
+
+**Median:**
+
+```{r}
+algae$a1 |>
+  median()
+```
+
+**Mode:** There is no specific function for mode in R, so we will create a user defined function. But this method would only work for unimodal data.
+
+```{r}
+Mode <- function(x, na.rm=FALSE){
+if(na.rm) x<-x[!is.na(x)]
+ux <- unique (x)
+return (ux[which.max(tabulate(match(x, ux)))])
+}
+
+algae$a2 |> Mode()
+```
+
+### Using the DMwR centralValue() function:
+
+It will return the median for a numerical variable or the mode for nominal variables
+
+```{r}
+# Numerical variable
+algae$a1 |> centralValue()
+```
+
+```{r}
+# Nominal variable
+algae$speed |> centralValue()
+```
+
+### Statistics of Spread (Variance):
+
+**Variance:**
+
+```{r}
+algae$a1 |> var()
+```
+
+**Standard Deviation:**
+
+```{r}
+algae$a1 |> sd()
+```
+
+**Range:** It gives us both maximum and minimum values
+
+```{r}
+algae$a1 |> range()
+```
+
+**Maximum value:**
+
+```{r}
+algae$a1 |> max()
+```
+
+**Minimum value:**
+
+```{r}
+algae$a1 |> min()
+```
+
+**Interquartile Range:**
+
+3rd quartile (75%) - 1st quartile (25%)
+
+```{r}
+algae$a1 |> IQR()
+```
+
+**Quantiles:**
+
+```{r}
+algae$a1 |> quantile()
+```
+
+We can also specify specific quantiles:
+
+```{r}
+algae$a1 |> quantile(probs = c(0.2, 0.8))
+```
+
+**Missing Values:**
+
+```{r}
+library(purrr)
+# Compute the total number of NA values in the dataset
+nas <- algae %>% 
+  purrr::map_dbl(~sum(is.na(.))) %>% 
+  sum()
+
+cat("The dataset contains ", nas, "NA values. \n")
+```
+
+```{r}
+# Compute the number of incomplete rows in the dataset
+incomplete_rows <- algae %>% 
+  summarise_all(~!complete.cases(.)) %>%
+  nrow()
+```
+
+```{r}
+cat("The dataset contains ", incomplete_rows, "(out of ", nrow(algae),") incomplete rows. \n")
+```
+
+### Summaries of a dataset:
+
+**Base R's Summary:**
+
+```{r}
+algae |> summary()
+```
+
+**Hmisc's describe():**
+
+```{r}
+data("penguins")
+penguins |> Hmisc::describe()
+```
+
+GMD is the mean absolute difference between any pairs of observations. A robust dispersion measure, especially for non-normally distributed data.
+
+**dlookr's describe():**
+
+```{r}
+penguins |> dlookr::describe()
+```
+
+**Summaries on a subset of data:**
+
+dplyr's summarise() and summaries_all(), or use them with select() and group_by() to create summaries on subset of data.
+
+Note: summarise() = semmarize()
+
+```{r}
+algae |>
+  summarise(avgNO3 = mean(NO3, na.rm=TRUE),
+            medA1 = median(a1))
+```
+
+summarise_all() can be used to apply any function that produces a scalar value to any column of a data frame table.
+
+```{r}
+algae |>
+  select(mxPH:Cl) |>
+  summarise_all(list(mean, median), na.rm = TRUE)
+```
+
+```{r}
+algae |>
+  select(a1:a7) |>
+  summarise_all(funs(var))
+```
+
+```{r}
+algae |>
+  select(a1:a7) |>
+  summarise_all(c("min", "max"))
+```
+
+**Using summarise() with group_by():**
+
+```{r}
+algae |>
+  group_by(season, size) |>
+  summarise(nObs = n(), mA7 = median(a7))
+```
+
+```{r}
+penguins |> 
+  group_by(species) |>
+  summarise(var = var(bill_length_mm, na.rm = TRUE))
+```
+
+### Aggregating data:
+
+This can be helpful for summary functions that don't return a scalar:
+
+```{r}
+penguins |>
+  group_by(species) |>
+  reframe(var = quantile(bill_length_mm, na.rm = TRUE))
+```
+
+reframe() expects a scalar result by the function, but quantile returns a vector.
+
+Using dlookr:
+
+```{r}
+penguins |>
+  group_by(species) |>
+  dlookr::describe(bill_length_mm)
+```
+
+### EXERCISE:
+
+**Getting to know your dataset:**
+
+1.  List datatypes of the attributes in your dataset: we use the str() function
+
+```{{r}}
+data("iris")
+str(iris) 
+```
+
+2.  Check for skewness in data distribution in the attributes: we use the skewness() function
+
+```{{r}}
+skewness(iris$Sepal.Length)
+```
+
+3.  Check for correlation among attributes: we use the cor() function
+
+```{r}
+cor(iris[1:4], method="kendall")
+```
+
+4.  Examine the extent of missing data. What would be the best way to deal with the missing data in this case?
+
+    ```{r}
+    data("airquality")
+    missing_val <- any(is.na(airquality)) #check missing values in complete dataset
+
+    missing_data <- sum(is.na(airquality$Ozone)) #check missing data in specific attribute
+
+    print(paste("Missing values in the data set:",missing_val), quote=FALSE)
+
+    print(paste("Total number of missing values in the attribute of our dataset are:",missing_data),quote=FALSE)
+
+    print(paste("positions of our missing values are:"), quote=FALSE)
+
+    name=names(which(colSums(is.na(airquality))>0))
+    print(name)
+
+
+    ```
+
+```{r}
+airquality[,c(name)]
+```
+
+**The above values are numeric and we can replace them with mean, median or mode of the columns or we can also omit the rows.**
